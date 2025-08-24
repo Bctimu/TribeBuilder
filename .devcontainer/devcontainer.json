@@ -1,0 +1,19 @@
+{
+  "name": "UMG Artist Social Media Assistant",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/app",
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash"
+  },
+  "extensions": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "ms-azuretools.vscode-docker",
+    "ms-vscode.sublime-keybindings",
+    "ms-vscode.remote-explorer"
+  ],
+  "forwardPorts": [3000, 5432],
+  "postCreateCommand": "npm install",
+  "remoteUser": "node"
+}
