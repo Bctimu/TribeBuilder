@@ -1,0 +1,3 @@
+[submodule "TribeBuildersBackend"]
+	path = TribeBuildersBackend
+	url = https://github.com/Bctimu/TribeBuilders.git
