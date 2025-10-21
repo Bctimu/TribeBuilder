@@ -157,10 +157,6 @@ router.post('/questionnaire', authenticateToken, async (req: Request, res: Respo
       const insertResponseQuery = `
         INSERT INTO persona_questionnaires (persona_id, question_key, question_text, answer_text, answer_type)
         VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (persona_id, question_key) 
-        DO UPDATE SET 
-          answer_text = EXCLUDED.answer_text,
-          created_at = CURRENT_TIMESTAMP
       `;
       
       await pool.query(insertResponseQuery, [

@@ -2,11 +2,19 @@ import { HfInference } from '@huggingface/inference';
 import OpenAI from 'openai';
 import NodeCache from 'node-cache';
 import { RateLimiterMemory } from 'rate-limiter-flexible';
+import Groq from 'groq-sdk';
+import { CohereClientV2 } from 'cohere-ai';
 
 // Initialize AI clients
 const hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'dummy-key-for-testing'
+});
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY || 'dummy-groq-key'
+});
+const cohere = new CohereClientV2({
+  token: process.env.COHERE_API_KEY || 'dummy-cohere-key'
 });
 
 // Initialize cache with TTL from environment
@@ -84,11 +92,159 @@ class AIContentService {
     return operation();
   }
 
-  // Generate persona-consistent content using Hugging Face
+  // Generate persona-consistent content using Groq (primary), Cohere (fallback), then Hugging Face
   async generateContent(params: ContentGenerationParams): Promise<GeneratedContent[]> {
+    try {
+      return await this.generateContentWithGroq(params);
+    } catch (groqError) {
+      console.log('Groq failed, falling back to Hugging Face:', groqError);
+      return await this.generateContentWithHuggingFace(params);
+    }
+  }
+
+  // Generate content using Groq
+  async generateContentWithGroq(params: ContentGenerationParams): Promise<GeneratedContent[]> {
+    if (!process.env.GROQ_API_KEY || process.env.GROQ_API_KEY === 'dummy-groq-key') {
+      throw new Error('Groq API key not configured');
+    }
+
+    const cacheKey = this.cacheKey('groq_content_gen', params);
+    const cached = cache.get<GeneratedContent[]>(cacheKey);
+
+    if (cached) {
+      console.log('Returning cached Groq content generation result');
+      return cached;
+    }
+
+    try {
+      const variations = params.variations || 3;
+      const results: GeneratedContent[] = [];
+
+      const systemPrompt = this.buildSystemPrompt(params.persona);
+      const userPrompt = this.buildUserPrompt(params.content_type, params.context);
+
+      for (let i = 0; i < variations; i++) {
+        const response = await this.withRateLimit(async () => {
+          return await groq.chat.completions.create({
+            model: 'llama-3.1-8b-instant',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt }
+            ],
+            max_tokens: params.max_length || 150,
+            temperature: 0.7 + (i * 0.1),
+            top_p: 0.9,
+          });
+        });
+
+        const content = response.choices[0]?.message?.content?.trim();
+
+        if (content) {
+          const qualityScore = await this.scoreContentQuality(content, params.persona);
+
+          results.push({
+            content,
+            quality_score: qualityScore.score,
+            variation_id: i + 1,
+            generation_params: {
+              model: 'llama-3.1-8b-instant',
+              temperature: 0.7 + (i * 0.1),
+              max_tokens: params.max_length || 150,
+              content_type: params.content_type
+            },
+            model_used: 'groq',
+            generated_at: new Date()
+          });
+        }
+      }
+
+      // Sort by quality score
+      results.sort((a, b) => b.quality_score - a.quality_score);
+
+      // Cache results
+      cache.set(cacheKey, results);
+
+      return results;
+
+    } catch (error) {
+      console.error('Groq content generation error:', error);
+      throw new Error(`Groq content generation failed: ${error}`);
+    }
+  }
+
+  // Generate content using Cohere
+  async generateContentWithCohere(params: ContentGenerationParams): Promise<GeneratedContent[]> {
+    if (!process.env.COHERE_API_KEY || process.env.COHERE_API_KEY === 'dummy-cohere-key') {
+      throw new Error('Cohere API key not configured');
+    }
+
+    const cacheKey = this.cacheKey('cohere_content_gen', params);
+    const cached = cache.get<GeneratedContent[]>(cacheKey);
+
+    if (cached) {
+      console.log('Returning cached Cohere content generation result');
+      return cached;
+    }
+
+    try {
+      const variations = params.variations || 3;
+      const results: GeneratedContent[] = [];
+
+      const systemPrompt = this.buildSystemPrompt(params.persona);
+      const userPrompt = this.buildUserPrompt(params.content_type, params.context);
+      const fullPrompt = `${systemPrompt}\n\nUser: ${userPrompt}\n\nAssistant:`;
+
+      for (let i = 0; i < variations; i++) {
+        const response = await this.withRateLimit(async () => {
+          return await cohere.generate({
+            model: 'command-r-plus',
+            prompt: fullPrompt,
+            maxTokens: params.max_length || 150,
+            temperature: 0.7 + (i * 0.1),
+            p: 0.9,
+          });
+        });
+
+        const content = response.generations?.[0]?.text?.trim();
+
+        if (content) {
+          const qualityScore = await this.scoreContentQuality(content, params.persona);
+
+          results.push({
+            content,
+            quality_score: qualityScore.score,
+            variation_id: i + 1,
+            generation_params: {
+              model: 'command-r-plus',
+              temperature: 0.7 + (i * 0.1),
+              maxTokens: params.max_length || 150,
+              content_type: params.content_type
+            },
+            model_used: 'cohere',
+            generated_at: new Date()
+          });
+        }
+      }
+
+      // Sort by quality score
+      results.sort((a, b) => b.quality_score - a.quality_score);
+
+      // Cache results
+      cache.set(cacheKey, results);
+
+      return results;
+
+    } catch (error) {
+      console.error('Cohere content generation error:', error);
+      throw new Error(`Cohere content generation failed: ${error}`);
+    }
+  }
+
+  // Generate persona-consistent content using Hugging Face (fallback)
+  async generateContentWithHuggingFace(params: ContentGenerationParams): Promise<GeneratedContent[]> {
     const cacheKey = this.cacheKey('content_gen', params);
     const cached = cache.get<GeneratedContent[]>(cacheKey);
-    
+
     if (cached) {
       console.log('Returning cached content generation result');
       return cached;
@@ -144,12 +300,12 @@ class AIContentService {
 
       // Cache results
       cache.set(cacheKey, results);
-      
+
       return results;
 
     } catch (error) {
-      console.error('Content generation error:', error);
-      throw new Error(`AI content generation failed: ${error}`);
+      console.error('Hugging Face content generation error:', error);
+      throw new Error(`Hugging Face content generation failed: ${error}`);
     }
   }
 

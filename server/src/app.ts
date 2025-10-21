@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
-// Load environment variables first
-dotenv.config();
+import path from 'path';
+// Load environment variables from root directory
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
@@ -25,7 +26,7 @@ const PORT = process.env.PORT || 3000;
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
+  origin: process.env.CORS_ORIGIN || ['http://localhost:8080', 'http://localhost:3000'],
   credentials: true,
 }));
 

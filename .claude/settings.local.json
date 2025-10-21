@@ -9,7 +9,19 @@
       "Bash(git rm:*)",
       "Bash(git submodule add:*)",
       "Bash(git submodule:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run install:all:*)",
+      "Bash(npm run dev:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(curl:*)",
+      "Bash(npx tsc:*)",
+      "Bash(nc localhost 3000)",
+      "Bash(tasklist)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

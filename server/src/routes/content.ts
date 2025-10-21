@@ -36,7 +36,7 @@ const contentGenerationSchema = Joi.object({
   max_length: Joi.number().min(50).max(500).optional(),
   variations: Joi.number().min(1).max(5).optional(),
   template_id: Joi.string().optional(),
-  use_openai: Joi.boolean().optional().default(false)
+  provider: Joi.string().valid('groq', 'cohere', 'openai', 'huggingface', 'auto').optional().default('auto')
 });
 
 const templateSchema = Joi.object({
@@ -125,7 +125,7 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res: Respon
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    const { content_type, context, max_length, variations, template_id, use_openai } = value as any;
+    const { content_type, context, max_length, variations, template_id, provider } = value as any;
 
     const personaData = await getArtistPersona(userId);
     
@@ -164,13 +164,26 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res: Respon
       }
     }
 
-    // Call appropriate AI service method
+    // Call appropriate AI service method based on provider
     let generatedContent = [] as Array<any>;
     try {
-      if (use_openai) {
-        generatedContent = await aiContentService.generateContentWithOpenAI(generationParams);
-      } else {
-        generatedContent = await aiContentService.generateContent(generationParams);
+      switch (provider) {
+        case 'groq':
+          generatedContent = await aiContentService.generateContentWithGroq(generationParams);
+          break;
+        case 'cohere':
+          throw new Error('Cohere integration temporarily disabled');
+          break;
+        case 'openai':
+          generatedContent = await aiContentService.generateContentWithOpenAI(generationParams);
+          break;
+        case 'huggingface':
+          generatedContent = await aiContentService.generateContentWithHuggingFace(generationParams);
+          break;
+        case 'auto':
+        default:
+          generatedContent = await aiContentService.generateContent(generationParams);
+          break;
       }
     } catch (err) {
       const errId = generateErrorId();
@@ -204,7 +217,7 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res: Respon
     const savedContent = await Promise.all(generatedContent.map(async (content: any) => {
       const metadata = {
         quality_score: typeof content.quality_score === 'number' ? content.quality_score : null,
-        model_used: content.model_used ?? (use_openai ? 'openai' : 'huggingface'),
+        model_used: content.model_used ?? 'auto',
         variation_id: content.variation_id ?? null,
         generated_at: content.generated_at ?? new Date().toISOString()
       };
@@ -260,7 +273,7 @@ router.post('/generate', authenticateToken, async (req: AuthRequest, res: Respon
         themes: personaForService.key_themes
       },
       generation_metadata: {
-        model_used: use_openai ? 'openai' : 'huggingface',
+        model_used: provider ?? 'auto',
         variations_generated: generatedContent.length,
         average_quality_score
       }
