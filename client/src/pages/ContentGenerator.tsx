@@ -12,7 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Sparkles, Copy, Check } from 'lucide-react';
+// [CHANGE 1] Added Twitter icon import
+import { Sparkles, Copy, Check, Twitter } from 'lucide-react';
 
 const formSchema = z.object({
   content_type: z.enum(['announcement', 'release', 'news', 'social_post', 'story']),
@@ -47,7 +48,6 @@ const ContentGenerator = () => {
       const { eventType, new: newRecord } = payload;
 
       if (eventType === 'INSERT' && newRecord.table === 'generated_content') {
-        // Optionally refresh content or show notification
         console.log('New content generated:', newRecord);
       }
     });
@@ -89,6 +89,13 @@ const ContentGenerator = () => {
     setCopiedId(id);
     toast.success('Copied to clipboard!');
     setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  // [CHANGE 2] Function to open X.com intent
+  const postToX = (content: string) => {
+    const tweetText = encodeURIComponent(content);
+    // Opens a new window with the text pre-filled
+    window.open(`https://twitter.com/intent/tweet?text=${tweetText}`, '_blank');
   };
 
   return (
@@ -296,24 +303,39 @@ const ContentGenerator = () => {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm leading-relaxed mb-4">{content.content}</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => copyToClipboard(content.content, content.id)}
-                    className="w-full"
-                  >
-                    {copiedId === content.id ? (
-                      <>
-                        <Check className="h-4 w-4 mr-2" />
-                        Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="h-4 w-4 mr-2" />
-                        Copy to Clipboard
-                      </>
-                    )}
-                  </Button>
+                  
+                  {/* [CHANGE 3] Added flex container for buttons */}
+                  <div className="flex space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(content.content, content.id)}
+                      className="flex-1"
+                    >
+                      {copiedId === content.id ? (
+                        <>
+                          <Check className="h-4 w-4 mr-2" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-4 w-4 mr-2" />
+                          Copy
+                        </>
+                      )}
+                    </Button>
+                    
+                    <Button
+                      variant="default" 
+                      size="sm"
+                      onClick={() => postToX(content.content)}
+                      className="flex-1 bg-black text-white hover:bg-black/90"
+                    >
+                      <Twitter className="h-4 w-4 mr-2" />
+                      Post to X
+                    </Button>
+                  </div>
+
                 </CardContent>
               </Card>
             ))}
