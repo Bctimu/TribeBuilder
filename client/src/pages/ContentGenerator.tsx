@@ -14,7 +14,6 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Sparkles, Copy, Check, Twitter } from 'lucide-react';
 
-// [UPDATED] Official Reddit "Snoo" Logo SVG
 const RedditIcon = ({ className }: { className?: string }) => (
   <svg 
     xmlns="http://www.w3.org/2000/svg" 
@@ -106,21 +105,17 @@ const ContentGenerator = () => {
   };
 
   const postToReddit = (content: string) => {
-    // 1. Create a draft title (first 80 chars)
-    const title = content.length > 80 ? content.substring(0, 80) + '...' : content;
+    // [CHANGE] Use a placeholder title instead of generating one
+    const title = "*insert title*";
     
-    // 2. Automatically copy the FULL content to clipboard
-    navigator.clipboard.writeText(content);
-    toast.info('Opening Reddit...', {
-      description: 'Text copied to clipboard! Paste it in the body if it doesn\'t appear automatically.',
-      duration: 5000,
-    });
-
     const encodedTitle = encodeURIComponent(title);
     const encodedText = encodeURIComponent(content);
     
-    // 3. Open Reddit Submit
-    window.open(`https://www.reddit.com/submit?selftext=true&title=${encodedTitle}&text=${encodedText}`, '_blank');
+    // Safety Net: Copy to clipboard anyway
+    navigator.clipboard.writeText(content);
+    
+    // Use 'old.reddit.com' to ensure body text is populated
+    window.open(`https://old.reddit.com/submit?title=${encodedTitle}&text=${encodedText}`, '_blank');
   };
 
   return (
