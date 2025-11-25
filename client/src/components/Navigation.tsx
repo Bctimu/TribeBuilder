@@ -26,6 +26,14 @@ const Navigation = () => {
     path: '/media',
     label: 'Media',
     icon: Upload
+  }, {
+    path: '/image-editor',
+    label: 'Image Editor',
+    icon: Image
+  }, {
+    path: '/video-editor',
+    label: 'Video Editor',
+    icon: Video
   }];
 
   const handleLogout = () => {

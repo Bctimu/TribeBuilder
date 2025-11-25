@@ -25,7 +25,8 @@
       "Bash(npm run migrate:*)",
       "Bash(timeout 10 npm run dev:*)",
       "Bash(git fetch:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []

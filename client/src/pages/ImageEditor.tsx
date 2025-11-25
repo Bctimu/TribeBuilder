@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/contexts/RealtimeContext';
 import { Download, Crop, RotateCw, Palette, Sparkles, Upload, Check, X, Sliders, Filter } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 
@@ -15,6 +15,9 @@ const ImageEditor = () => {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const [uploadedForEdit, setUploadedForEdit] = useState<string | null>(null);
+  const [editPrompt, setEditPrompt] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
   const [isCropping, setIsCropping] = useState(false);
   const [cropRect, setCropRect] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -55,6 +58,51 @@ const ImageEditor = () => {
       toast.error('Failed to generate image. Please try again.');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleUploadForEdit = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        setUploadedForEdit(result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const editUploadedImage = async () => {
+    if (!uploadedForEdit) {
+      toast.error('Please upload an image first');
+      return;
+    }
+    if (!editPrompt.trim()) {
+      toast.error('Please enter editing instructions');
+      return;
+    }
+
+    setIsEditing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-image', {
+        body: { 
+          prompt: editPrompt.trim(),
+          imageUrl: uploadedForEdit,
+          mode: 'edit'
+        }
+      });
+
+      if (error) throw error;
+
+      setGeneratedImage(data.imageUrl);
+      loadImageToCanvas(data.imageUrl);
+      toast.success('Image edited successfully!');
+    } catch (error) {
+      console.error('Error editing image:', error);
+      toast.error('Failed to edit image. Please try again.');
+    } finally {
+      setIsEditing(false);
     }
   };
 
@@ -698,6 +746,61 @@ const ImageEditor = () => {
                   size="lg"
                 >
                   {isGenerating ? 'Generating...' : 'Generate Image'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-card shadow-card border-border/50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="h-5 w-5 text-primary" />
+                  Edit Your Own Image
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Upload Image</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleUploadForEdit}
+                    className="block w-full text-sm text-muted-foreground
+                      file:mr-4 file:py-2 file:px-4
+                      file:rounded-md file:border-0
+                      file:text-sm file:font-medium
+                      file:bg-primary file:text-primary-foreground
+                      hover:file:bg-primary/90 file:cursor-pointer"
+                  />
+                </div>
+                
+                {uploadedForEdit && (
+                  <div className="border border-border rounded-lg p-4">
+                    <img 
+                      src={uploadedForEdit} 
+                      alt="Uploaded for editing" 
+                      className="max-w-full h-48 object-contain mx-auto rounded"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Edit Instructions</label>
+                  <Textarea
+                    placeholder="Tell AI how to modify your image (e.g., 'add text saying Concert Tonight at 8PM' or 'make it more vibrant and add sparkles')"
+                    value={editPrompt}
+                    onChange={(e) => setEditPrompt(e.target.value)}
+                    rows={3}
+                    className="resize-none"
+                  />
+                </div>
+                
+                <Button 
+                  onClick={editUploadedImage} 
+                  disabled={isEditing || !uploadedForEdit}
+                  className="w-full"
+                  size="lg"
+                >
+                  {isEditing ? 'Editing Image...' : 'Edit Image with AI'}
                 </Button>
               </CardContent>
             </Card>
