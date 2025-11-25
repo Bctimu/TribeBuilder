@@ -7,7 +7,7 @@ const router = Router();
 
 const artistSchema = Joi.object({
   artist_name: Joi.string().min(1).max(100).required(),
-  real_name: Joi.string().min(1).max(100).required(),
+  real_name: Joi.string().min(1).max(100).optional().allow(''),
   bio: Joi.string().max(2000).optional().allow(''),
   genre: Joi.string().max(50).optional().allow(''),
   location: Joi.string().max(100).optional().allow(''),
