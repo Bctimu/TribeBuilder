@@ -144,22 +144,23 @@ const ContentGenerator = () => {
     window.open(`https://twitter.com/intent/tweet?text=${tweetText}`, '_blank');
   };
 
-  const postToReddit = (content: string) => {
-    // 1. Create a draft title (first 80 chars)
-    const title = content.length > 80 ? content.substring(0, 80) + '...' : content;
-    
-    // 2. Automatically copy the FULL content to clipboard
-    navigator.clipboard.writeText(content);
-    toast.info('Opening Reddit...', {
-      description: 'Text copied to clipboard! Paste it in the body if it doesn\'t appear automatically.',
-      duration: 5000,
-    });
+  const postToReddit = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      toast.success('Copied for Reddit', {
+        description: 'Text copied to clipboard. Paste it into your Reddit post.',
+      });
+    } catch (error) {
+      toast.error('Could not copy to clipboard', {
+        description: 'Please copy manually before posting to Reddit.',
+      });
+    }
 
-    const encodedTitle = encodeURIComponent(title);
-    const encodedText = encodeURIComponent(content);
-    
-    // 3. Open Reddit Submit
-    window.open(`https://www.reddit.com/submit?selftext=true&title=${encodedTitle}&text=${encodedText}`, '_blank');
+    const redditUrl = 'https://www.reddit.com/submit?selftext=true';
+    const opened = window.open(redditUrl, '_blank');
+    if (!opened) {
+      window.open('https://www.reddit.com', '_blank');
+    }
   };
 
   const openYouTubeUpload = async (content: string, id?: string) => {
