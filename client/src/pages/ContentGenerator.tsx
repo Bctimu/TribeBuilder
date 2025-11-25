@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Sparkles, Copy, Check, Twitter } from 'lucide-react';
+import { Sparkles, Copy, Check, Twitter, Youtube } from 'lucide-react';
 
 const RedditIcon = ({ className }: { className?: string }) => (
   <svg 
@@ -143,18 +143,48 @@ const ContentGenerator = () => {
     window.open(`https://twitter.com/intent/tweet?text=${tweetText}`, '_blank');
   };
 
-  const postToReddit = (content: string) => {
-    // [CHANGE] Use a placeholder title instead of generating one
-    const title = "*insert title*";
-    
-    const encodedTitle = encodeURIComponent(title);
-    const encodedText = encodeURIComponent(content);
-    
-    // Safety Net: Copy to clipboard anyway
-    navigator.clipboard.writeText(content);
-    
-    // Use 'old.reddit.com' to ensure body text is populated
-    window.open(`https://old.reddit.com/submit?title=${encodedTitle}&text=${encodedText}`, '_blank');
+  const postToReddit = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      toast.success('Copied for Reddit', {
+        description: 'Text copied to clipboard. Paste it into your Reddit post.',
+      });
+    } catch (error) {
+      toast.error('Could not copy to clipboard', {
+        description: 'Please copy manually before posting to Reddit.',
+      });
+    }
+
+    const redditUrl = 'https://www.reddit.com/submit?selftext=true';
+    const opened = window.open(redditUrl, '_blank');
+    if (!opened) {
+      window.open('https://www.reddit.com', '_blank');
+    }
+  };
+
+  const openYouTubeUpload = async (content: string, id?: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      if (id) {
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+      }
+      toast.success('Copied to clipboard', {
+        description: 'Text ready to paste into your YouTube post/description.',
+      });
+    } catch (err) {
+      toast.error('Could not copy to clipboard', {
+        description: 'Please copy manually before uploading.',
+      });
+    }
+
+    // Open channel posts page directly
+    const postsUrl = 'https://www.youtube.com/channel/UCFwxGTgUB15JQ9fbRMjqJwQ/posts';
+    const fallbackUrl = 'https://studio.youtube.com';
+    const opened = window.open(postsUrl, '_blank');
+    if (!opened) {
+      window.open(fallbackUrl, '_blank');
+    }
   };
 
   return (
@@ -362,12 +392,12 @@ const ContentGenerator = () => {
                 <CardContent>
                   <p className="text-sm leading-relaxed mb-4">{content.content}</p>
                   
-                  <div className="flex space-x-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => copyToClipboard(content.content, content.id)}
-                      className="flex-1"
+                      className="flex-1 min-w-[120px]"
                     >
                       {copiedId === content.id ? (
                         <>
@@ -381,25 +411,35 @@ const ContentGenerator = () => {
                         </>
                       )}
                     </Button>
-                    
+
                     <Button
-                      variant="default" 
+                      variant="default"
                       size="sm"
                       onClick={() => postToX(content.content)}
-                      className="flex-1 bg-black text-white hover:bg-black/90"
+                      className="flex-1 min-w-[120px] bg-black text-white hover:bg-black/90"
                     >
                       <Twitter className="h-4 w-4 mr-2" />
                       Post to X
                     </Button>
 
                     <Button
-                      variant="default" 
+                      variant="default"
                       size="sm"
                       onClick={() => postToReddit(content.content)}
-                      className="flex-1 bg-[#FF4500] text-white hover:bg-[#FF4500]/90"
+                      className="flex-1 min-w-[120px] bg-[#FF4500] text-white hover:bg-[#FF4500]/90"
                     >
                       <RedditIcon className="h-4 w-4 mr-2" />
                       Post to Reddit
+                    </Button>
+
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => openYouTubeUpload(content.content, content.id)}
+                      className="flex-1 min-w-[150px] bg-[#FF0000] text-white hover:bg-[#e60000]"
+                    >
+                      <Youtube className="h-4 w-4 mr-2" />
+                      YouTube Upload
                     </Button>
                   </div>
 
