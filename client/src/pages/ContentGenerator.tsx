@@ -162,11 +162,15 @@ const ContentGenerator = () => {
     window.open(`https://www.reddit.com/submit?selftext=true&title=${encodedTitle}&text=${encodedText}`, '_blank');
   };
 
-  const openYouTubeUpload = async (content: string) => {
+  const openYouTubeUpload = async (content: string, id?: string) => {
     try {
       await navigator.clipboard.writeText(content);
+      if (id) {
+        setCopiedId(id);
+        setTimeout(() => setCopiedId(null), 2000);
+      }
       toast.success('Copied to clipboard', {
-        description: 'Text ready to paste into your YouTube description.',
+        description: 'Text ready to paste into your YouTube post/description.',
       });
     } catch (err) {
       toast.error('Could not copy to clipboard', {
@@ -174,7 +178,13 @@ const ContentGenerator = () => {
       });
     }
 
-    window.open('https://studio.youtube.com/channel/UC/upload', '_blank');
+    // Open channel posts page directly
+    const postsUrl = 'https://www.youtube.com/channel/UCFwxGTgUB15JQ9fbRMjqJwQ/posts';
+    const fallbackUrl = 'https://studio.youtube.com';
+    const opened = window.open(postsUrl, '_blank');
+    if (!opened) {
+      window.open(fallbackUrl, '_blank');
+    }
   };
 
   return (
@@ -425,7 +435,7 @@ const ContentGenerator = () => {
                     <Button
                       variant="default"
                       size="sm"
-                      onClick={() => openYouTubeUpload(content.content)}
+                      onClick={() => openYouTubeUpload(content.content, content.id)}
                       className="flex-1 min-w-[150px] bg-[#FF0000] text-white hover:bg-[#e60000]"
                     >
                       <Youtube className="h-4 w-4 mr-2" />
