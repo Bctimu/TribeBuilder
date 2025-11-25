@@ -49,7 +49,7 @@ const MediaUpload = () => {
         name: file.name,
         type: getFileType(file),
         url: URL.createObjectURL(file),
-        uploadedAt: new Date(),
+        uploadedAt: new Date().toISOString(),
       };
 
       addMediaFile(mediaFile);
@@ -220,7 +220,7 @@ const MediaUpload = () => {
                               {file.type}
                             </Badge>
                             <span className="text-xs text-muted-foreground">
-                              {file.uploadedAt.toLocaleDateString()}
+                              {new Date(file.uploadedAt).toLocaleDateString()}
                             </span>
                           </div>
                         </div>

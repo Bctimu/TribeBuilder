@@ -12,7 +12,7 @@ export interface MediaFile {
   name: string;
   type: 'image' | 'video' | 'audio';
   url: string;
-  uploadedAt: Date;
+  uploadedAt: string; // Store as ISO string for localStorage compatibility
 }
 
 export interface UploadedFile {
