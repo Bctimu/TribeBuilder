@@ -23,7 +23,9 @@
       "Bash(tasklist)",
       "Bash(node:*)",
       "Bash(npm run migrate:*)",
-      "Bash(timeout 10 npm run dev:*)"
+      "Bash(timeout 10 npm run dev:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)"
     ],
     "deny": [],
     "ask": []

@@ -36,6 +36,36 @@ const formSchema = z.object({
 
 type FormData = z.infer<typeof formSchema>;
 
+const MAX_CONTEXT_LENGTH = 500;
+const clampNumber = (value: number | undefined, min: number, max: number) => {
+  if (!Number.isFinite(value)) return min;
+  return Math.min(Math.max(value!, min), max);
+};
+
+const enforceSentenceFriendlyLimit = (text: string, charLimit: number) => {
+  if (!text) return '';
+  const trimmed = text.trim();
+  if (trimmed.length <= charLimit) return trimmed;
+
+  const forwardWindow = 200; // allow finishing the sentence close after the limit
+  const searchWindow = trimmed.slice(charLimit, charLimit + forwardWindow);
+  const forwardMatch = searchWindow.match(/[.!?]/);
+
+  if (forwardMatch && typeof forwardMatch.index === 'number') {
+    const cutIndex = charLimit + forwardMatch.index + 1; // include punctuation
+    return trimmed.slice(0, cutIndex).trim();
+  }
+
+  const backwardSlice = trimmed.slice(0, charLimit);
+  const backwardMatch = backwardSlice.match(/.*[.!?]/);
+  if (backwardMatch && backwardMatch[0].length > 0) {
+    return backwardMatch[0].trim();
+  }
+
+  // Fallback: hard trim at char limit
+  return trimmed.slice(0, charLimit).trim();
+};
+
 const ContentGenerator = () => {
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -71,15 +101,24 @@ const ContentGenerator = () => {
     setGeneratedContent([]);
 
     try {
+      const trimmedContext = values.context.trim().slice(0, MAX_CONTEXT_LENGTH);
+      const safeCharLimit = clampNumber(values.max_length, 50, 500);
+      const safeVariations = clampNumber(values.variations, 1, 5);
+
       const response = await apiClient.generateContent({
         content_type: values.content_type,
-        context: values.context,
-        max_length: values.max_length,
-        variations: values.variations,
+        context: trimmedContext,
+        max_length: safeCharLimit,
+        variations: safeVariations,
         provider: values.provider,
       });
 
-      setGeneratedContent(response.generated_content);
+      setGeneratedContent(
+        response.generated_content.map((item) => ({
+          ...item,
+          content: enforceSentenceFriendlyLimit(item.content, safeCharLimit),
+        }))
+      );
 
       toast.success('Content generated successfully!', {
         description: `Generated ${response.generation_metadata.variations_generated} variations`,
@@ -182,11 +221,12 @@ const ContentGenerator = () => {
                           <Textarea
                             placeholder="Describe what you want to post about... (e.g., 'new single dropping Friday', 'upcoming tour dates')"
                             className="resize-none h-24"
+                            maxLength={MAX_CONTEXT_LENGTH}
                             {...field}
                           />
                         </FormControl>
                         <FormDescription>
-                          Provide context for the AI to generate relevant content
+                          Provide context for the AI to generate relevant content (max {MAX_CONTEXT_LENGTH} characters)
                         </FormDescription>
                         <FormMessage />
                       </FormItem>
