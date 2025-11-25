@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { Sparkles, Copy, Check, Twitter } from 'lucide-react';
+import { Sparkles, Copy, Check, Twitter, Youtube } from 'lucide-react';
 
 // [UPDATED] Official Reddit "Snoo" Logo SVG
 const RedditIcon = ({ className }: { className?: string }) => (
@@ -160,6 +160,21 @@ const ContentGenerator = () => {
     
     // 3. Open Reddit Submit
     window.open(`https://www.reddit.com/submit?selftext=true&title=${encodedTitle}&text=${encodedText}`, '_blank');
+  };
+
+  const openYouTubeUpload = async (content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      toast.success('Copied to clipboard', {
+        description: 'Text ready to paste into your YouTube description.',
+      });
+    } catch (err) {
+      toast.error('Could not copy to clipboard', {
+        description: 'Please copy manually before uploading.',
+      });
+    }
+
+    window.open('https://studio.youtube.com/channel/UC/upload', '_blank');
   };
 
   return (
@@ -367,12 +382,12 @@ const ContentGenerator = () => {
                 <CardContent>
                   <p className="text-sm leading-relaxed mb-4">{content.content}</p>
                   
-                  <div className="flex space-x-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => copyToClipboard(content.content, content.id)}
-                      className="flex-1"
+                      className="flex-1 min-w-[120px]"
                     >
                       {copiedId === content.id ? (
                         <>
@@ -391,7 +406,7 @@ const ContentGenerator = () => {
                       variant="default" 
                       size="sm"
                       onClick={() => postToX(content.content)}
-                      className="flex-1 bg-black text-white hover:bg-black/90"
+                      className="flex-1 min-w-[120px] bg-black text-white hover:bg-black/90"
                     >
                       <Twitter className="h-4 w-4 mr-2" />
                       Post to X
@@ -401,10 +416,20 @@ const ContentGenerator = () => {
                       variant="default" 
                       size="sm"
                       onClick={() => postToReddit(content.content)}
-                      className="flex-1 bg-[#FF4500] text-white hover:bg-[#FF4500]/90"
+                      className="flex-1 min-w-[120px] bg-[#FF4500] text-white hover:bg-[#FF4500]/90"
                     >
                       <RedditIcon className="h-4 w-4 mr-2" />
                       Post to Reddit
+                    </Button>
+
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => openYouTubeUpload(content.content)}
+                      className="flex-1 min-w-[150px] bg-[#FF0000] text-white hover:bg-[#e60000]"
+                    >
+                      <Youtube className="h-4 w-4 mr-2" />
+                      YouTube Upload
                     </Button>
                   </div>
 
