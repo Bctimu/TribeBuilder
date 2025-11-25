@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Login</title>
+</head>
+<body>
+    <h1>Debug Login Test</h1>
+    <div id="output"></div>
+
+    <script>
+        async function testLogin() {
+            const output = document.getElementById('output');
+            output.innerHTML = 'Testing login...<br>';
+
+            try {
+                const response = await fetch('http://localhost:3000/api/users/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'test@example.com',
+                        password: 'password123'
+                    })
+                });
+
+                output.innerHTML += `Status: ${response.status}<br>`;
+                output.innerHTML += `Status Text: ${response.statusText}<br>`;
+                output.innerHTML += `OK: ${response.ok}<br>`;
+                output.innerHTML += `Headers:<br>`;
+
+                response.headers.forEach((value, key) => {
+                    output.innerHTML += `  ${key}: ${value}<br>`;
+                });
+
+                const data = await response.json();
+                output.innerHTML += `<br>Response Body:<br>${JSON.stringify(data, null, 2)}`;
+
+            } catch (error) {
+                output.innerHTML += `<br>Error: ${error.message}<br>`;
+                output.innerHTML += `Error stack: ${error.stack}`;
+            }
+        }
+
+        testLogin();
+    </script>
+</body>
+</html>

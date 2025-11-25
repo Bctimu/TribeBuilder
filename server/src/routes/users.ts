@@ -156,7 +156,57 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
 });
 
 /* ---------------------------------------------------
-   🔹 Get User Profile (Protected Route)
+   🔹 Get Current User (Protected Route)
+--------------------------------------------------- */
+router.get('/me', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user.userId;
+
+    const userQuery = `
+      SELECT u.id, u.email, u.created_at, u.email_verified, u.last_login,
+             a.id as artist_id, a.artist_name, a.real_name, a.bio, a.genre, a.location
+      FROM users u
+      LEFT JOIN artists a ON u.id = a.user_id
+      WHERE u.id = $1
+    `;
+
+    const result = await pool.query(userQuery, [userId]);
+
+    if (result.rows.length === 0) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    const userData = result.rows[0];
+    res.json({
+      user: {
+        id: userData.id,
+        email: userData.email,
+        created_at: userData.created_at,
+        email_verified: userData.email_verified,
+        last_login: userData.last_login,
+      },
+      artist: userData.artist_id
+        ? {
+            id: userData.artist_id,
+            artist_name: userData.artist_name,
+            real_name: userData.real_name,
+            bio: userData.bio,
+            genre: userData.genre,
+            location: userData.location,
+          }
+        : null,
+    });
+  } catch (error) {
+    console.error('Get current user error:', error);
+    res.status(500).json({
+      error: 'Internal server error fetching current user',
+    });
+  }
+});
+
+/* ---------------------------------------------------
+   🔹 Get User Profile (Protected Route) - Alias for /me
 --------------------------------------------------- */
 router.get('/profile', authenticateToken, async (req: Request, res: Response): Promise<void> => {
   try {

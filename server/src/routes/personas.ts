@@ -27,7 +27,7 @@ function authenticateToken(req: Request, res: Response, next: any): void {
 
 // Validation schemas
 const personaSchema = Joi.object({
-  persona_name: Joi.string().min(1).max(255).optional().default('Main Persona'),
+  persona_name: Joi.string().min(1).max(255).optional(),
   description: Joi.string().max(2000).optional(),
   tone: Joi.string().max(50).optional(),
   target_audience: Joi.string().max(1000).optional(),
@@ -249,6 +249,117 @@ router.get('/persona', authenticateToken, async (req: Request, res: Response): P
     console.error('Get persona error:', error);
     res.status(500).json({ 
       error: 'Internal server error fetching persona' 
+    });
+    return;
+  }
+});
+
+// Update persona details directly
+router.put('/:id', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { error, value } = personaSchema.validate(req.body);
+    if (error) {
+      res.status(400).json({
+        error: 'Validation error',
+        details: error.details?.[0]?.message
+      });
+      return;
+    }
+
+    const userId = (req as any).user.userId;
+    const personaId = req.params.id;
+
+    // Verify the persona belongs to the user
+    const ownershipQuery = `
+      SELECT p.id
+      FROM artist_personas p
+      JOIN artists a ON p.artist_id = a.id
+      WHERE p.id = $1 AND a.user_id = $2
+    `;
+
+    const ownershipResult = await pool.query(ownershipQuery, [personaId, userId]);
+
+    if (ownershipResult.rows.length === 0) {
+      res.status(404).json({
+        error: 'Persona not found or you do not have permission to update it'
+      });
+      return;
+    }
+
+    // Build dynamic update query based on provided fields
+    const updateFields: string[] = [];
+    const updateValues: any[] = [];
+    let paramCount = 1;
+
+    if (value.persona_name !== undefined) {
+      updateFields.push(`persona_name = $${paramCount}`);
+      updateValues.push(value.persona_name);
+      paramCount++;
+    }
+
+    if (value.description !== undefined) {
+      updateFields.push(`description = $${paramCount}`);
+      updateValues.push(value.description);
+      paramCount++;
+    }
+
+    if (value.tone !== undefined) {
+      updateFields.push(`tone = $${paramCount}`);
+      updateValues.push(value.tone);
+      paramCount++;
+    }
+
+    if (value.target_audience !== undefined) {
+      updateFields.push(`target_audience = $${paramCount}`);
+      updateValues.push(value.target_audience);
+      paramCount++;
+    }
+
+    if (value.key_themes !== undefined) {
+      updateFields.push(`key_themes = $${paramCount}`);
+      updateValues.push(value.key_themes);
+      paramCount++;
+    }
+
+    if (value.voice_characteristics !== undefined) {
+      updateFields.push(`voice_characteristics = $${paramCount}`);
+      updateValues.push(JSON.stringify(value.voice_characteristics));
+      paramCount++;
+    }
+
+    // Always update the timestamp
+    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+
+    if (updateFields.length === 1) {
+      // Only timestamp would be updated, no actual changes
+      res.status(400).json({
+        error: 'No valid fields provided for update'
+      });
+      return;
+    }
+
+    // Add persona ID as last parameter
+    updateValues.push(personaId);
+
+    const updateQuery = `
+      UPDATE artist_personas
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramCount}
+      RETURNING id, persona_name, description, tone, target_audience, key_themes, voice_characteristics, created_at, updated_at, is_active
+    `;
+
+    const result = await pool.query(updateQuery, updateValues);
+
+    res.json({
+      message: 'Persona updated successfully',
+      persona: result.rows[0]
+    });
+    return;
+
+  } catch (error) {
+    console.error('Update persona error:', error);
+    res.status(500).json({
+      error: 'Internal server error updating persona'
     });
     return;
   }

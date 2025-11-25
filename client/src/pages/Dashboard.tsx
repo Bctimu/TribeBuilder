@@ -1,11 +1,48 @@
+import { useEffect, useState } from 'react';
 import { useArtistStore } from '@/stores/artistStore';
+import { apiClient } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { User, Music, Image, Video, FileText } from 'lucide-react';
+import { User, Music, Image, Video, FileText, Loader2 } from 'lucide-react';
 import heroImage from '@/assets/musician-hero.jpg';
 
 const Dashboard = () => {
-  const { artistData, mediaFiles } = useArtistStore();
+  const { artistData, mediaFiles, uploadedFiles, updateArtistData, setUploadedFiles } = useArtistStore();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Fetch artist profile and uploaded files on mount
+    const loadData = async () => {
+      try {
+        const userData = await apiClient.getCurrentUser();
+
+        // Load artist data into Zustand if it exists
+        if (userData.artist) {
+          updateArtistData({
+            artistName: userData.artist.artist_name || '',
+            genre: userData.artist.genre || '',
+            bio: userData.artist.bio || '',
+          });
+        }
+
+        // Fetch uploaded files
+        try {
+          const filesData = await apiClient.getUploadedFiles();
+          if (filesData.files) {
+            setUploadedFiles(filesData.files);
+          }
+        } catch (error) {
+          console.log('No uploaded files found or not logged in');
+        }
+      } catch (error) {
+        console.log('No artist profile found or not logged in');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [updateArtistData, setUploadedFiles]);
 
   const getMediaTypeIcon = (type: string) => {
     switch (type) {
@@ -20,6 +57,7 @@ const Dashboard = () => {
     image: mediaFiles.filter(f => f.type === 'image').length,
     video: mediaFiles.filter(f => f.type === 'video').length,
     audio: mediaFiles.filter(f => f.type === 'audio').length,
+    uploads: uploadedFiles.length,
   };
 
   return (
@@ -142,6 +180,34 @@ const Dashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Uploaded Files from Backend */}
+        {uploadedFiles.length > 0 && (
+          <div className="mt-8">
+            <h2 className="text-2xl font-bold mb-6">Uploaded Files</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {uploadedFiles.map((file) => (
+                <Card key={file.id} className="bg-gradient-card shadow-card border-border/50 hover:shadow-creative transition-all duration-300">
+                  <CardContent className="p-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <FileText className="h-4 w-4 text-primary" />
+                        <p className="font-medium truncate">{file.source_url}</p>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <span className="capitalize">{file.source_type}</span>
+                        <Badge variant="outline">{Math.round(file.transcript_length / 1000)}KB</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Uploaded {new Date(file.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Recent Media Files */}
         {mediaFiles.length > 0 && (

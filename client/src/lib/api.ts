@@ -203,6 +203,10 @@ export class ApiClient {
     this.setToken(null);
   }
 
+  async getCurrentUser(): Promise<{ user: User; artist: Artist | null }> {
+    return this.request('/users/me');
+  }
+
   // ==================== Artists ====================
 
   async getArtistProfile(): Promise<Artist> {
