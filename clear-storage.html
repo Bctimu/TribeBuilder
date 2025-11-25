@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear TribeBuilder Storage</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            text-align: center;
+            max-width: 500px;
+        }
+        h1 {
+            color: #667eea;
+            margin-bottom: 1rem;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 10px;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        .success {
+            color: #10b981;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+        .info {
+            color: #6b7280;
+            margin-top: 1rem;
+            font-size: 14px;
+        }
+        .storage-info {
+            background: #f3f4f6;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            text-align: left;
+        }
+        .storage-item {
+            font-family: monospace;
+            font-size: 12px;
+            margin: 5px 0;
+            color: #374151;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Clear TribeBuilder Storage</h1>
+        <p>This will clear all cached data and fix any storage issues.</p>
+
+        <div class="storage-info" id="storageInfo">
+            <strong>Current Storage:</strong>
+            <div id="storageList"></div>
+        </div>
+
+        <button onclick="clearStorage()">Clear All Storage</button>
+        <button onclick="window.location.href='http://localhost:8084'">Go to App</button>
+
+        <div id="message"></div>
+
+        <div class="info">
+            <p>This will clear:</p>
+            <ul style="text-align: left; display: inline-block;">
+                <li>localStorage (artist-storage, auth tokens)</li>
+                <li>sessionStorage</li>
+                <li>Service Workers</li>
+                <li>Cache Storage</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function displayStorageInfo() {
+            const storageList = document.getElementById('storageList');
+            const items = [];
+
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                items.push(`<div class="storage-item">📦 ${key}</div>`);
+            }
+
+            if (items.length === 0) {
+                storageList.innerHTML = '<div class="storage-item">✨ No items in storage</div>';
+            } else {
+                storageList.innerHTML = items.join('');
+            }
+        }
+
+        async function clearStorage() {
+            const messageDiv = document.getElementById('message');
+
+            try {
+                // Clear localStorage
+                localStorage.clear();
+
+                // Clear sessionStorage
+                sessionStorage.clear();
+
+                // Clear all caches
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(cacheNames.map(name => caches.delete(name)));
+                }
+
+                // Unregister service workers
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(registrations.map(reg => reg.unregister()));
+                }
+
+                messageDiv.innerHTML = '<div class="success">✅ Storage cleared successfully!</div>';
+                displayStorageInfo();
+
+                // Auto redirect after 2 seconds
+                setTimeout(() => {
+                    window.location.href = 'http://localhost:8084';
+                }, 2000);
+
+            } catch (error) {
+                messageDiv.innerHTML = '<div style="color: #ef4444;">❌ Error: ' + error.message + '</div>';
+            }
+        }
+
+        // Display storage info on load
+        displayStorageInfo();
+    </script>
+</body>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug - Check Console</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        #errors { color: #f48771; }
+        #info { color: #4ec9b0; }
+    </style>
+</head>
+<body>
+    <h1>Debug Console</h1>
+    <div id="info">Loading main app to capture errors...</div>
+    <div id="errors"></div>
+    <hr>
+    <iframe src="/" style="width:100%; height:600px; border:1px solid #555;"></iframe>
+
+    <script>
+        window.addEventListener('error', (e) => {
+            document.getElementById('errors').innerHTML += `<br>❌ ${e.message}<br>   at ${e.filename}:${e.lineno}`;
+        });
+
+        window.addEventListener('unhandledrejection', (e) => {
+            document.getElementById('errors').innerHTML += `<br>❌ Promise rejection: ${e.reason}`;
+        });
+
+        // Check localStorage
+        try {
+            const storage = localStorage.getItem('artist-storage');
+            if (storage) {
+                document.getElementById('info').innerHTML += '<br>📦 Found artist-storage in localStorage';
+                const parsed = JSON.parse(storage);
+                document.getElementById('info').innerHTML += '<br>   State keys: ' + Object.keys(parsed.state || {}).join(', ');
+            }
+        } catch (e) {
+            document.getElementById('errors').innerHTML += '<br>❌ localStorage error: ' + e.message;
+        }
+    </script>
+</body>
+</html>
