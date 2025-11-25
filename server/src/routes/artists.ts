@@ -60,7 +60,7 @@ router.post('/profile', authenticateToken, async (req: Request, res: Response): 
         location,
         userId,
       ]);
-      res.json({ message: 'Artist profile updated successfully', profile: updateResult.rows[0] });
+      res.json({ message: 'Artist profile updated successfully', artist: updateResult.rows[0] });
       return;
     } else {
       const createQuery = `
@@ -76,7 +76,7 @@ router.post('/profile', authenticateToken, async (req: Request, res: Response): 
         genre,
         location,
       ]);
-      res.status(201).json({ message: 'Artist profile created successfully', profile: createResult.rows[0] });
+      res.status(201).json({ message: 'Artist profile created successfully', artist: createResult.rows[0] });
       return;
     }
   } catch (error) {
@@ -101,6 +101,51 @@ router.get('/profile', authenticateToken, async (req: Request, res: Response): P
     return;
   } catch (error) {
     console.error('Get artist profile error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+    return;
+  }
+});
+
+router.put('/profile', authenticateToken, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = (req as any).user.userId;
+    const { artist_name, real_name, bio, genre, location } = req.body;
+
+    const { error } = artistSchema.validate(req.body);
+    if (error) {
+      res.status(400).json({ error: 'Validation error', details: error.details?.[0]?.message });
+      return;
+    }
+
+    // Check if profile exists
+    const checkResult = await pool.query('SELECT user_id FROM artists WHERE user_id = $1', [userId]);
+
+    if (checkResult.rows.length === 0) {
+      res.status(404).json({ error: 'Artist profile not found. Please create a profile first.' });
+      return;
+    }
+
+    // Update profile
+    const updateQuery = `
+      UPDATE artists
+      SET artist_name = $1, real_name = $2, bio = $3, genre = $4, location = $5
+      WHERE user_id = $6
+      RETURNING *
+    `;
+    const updateResult = await pool.query(updateQuery, [
+      artist_name,
+      real_name,
+      bio,
+      genre,
+      location,
+      userId,
+    ]);
+
+    res.json({ message: 'Artist profile updated successfully', artist: updateResult.rows[0] });
+    return;
+
+  } catch (error) {
+    console.error('Update artist profile error:', error);
     res.status(500).json({ error: 'Internal server error' });
     return;
   }
