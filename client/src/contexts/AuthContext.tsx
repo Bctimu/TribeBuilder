@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { apiClient, User, LoginResponse } from '@/lib/api';
 import { useArtistStore } from '@/stores/artistStore';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextType {
   user: User | null;
@@ -29,54 +31,62 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { updateArtistData, clearArtistData, setUploadedFiles } = useArtistStore();
+  const { toast: showToast } = useToast();
 
   useEffect(() => {
-    // Check if user is already logged in (has token)
-    const token = apiClient.getToken();
-    if (token) {
-      // Fetch current user data and artist profile
-      apiClient.getCurrentUser()
-        .then(async response => {
-          setUser(response.user);
-
-          // If user has an artist profile, load it into Zustand
-          if (response.artist) {
-            updateArtistData({
-              artistName: response.artist.artist_name || '',
-              genre: response.artist.genre || '',
-              bio: response.artist.bio || '',
-            });
-          }
-
-          // Fetch uploaded files
-          try {
-            const filesData = await apiClient.getUploadedFiles();
-            if (filesData.files) {
-              setUploadedFiles(filesData.files);
-            }
-          } catch (error) {
-            console.log('No uploaded files found');
-          }
-        })
-        .catch(error => {
-          console.error('Failed to fetch user data:', error);
-          // Invalid token, clear it
-          apiClient.logout();
-        })
-        .finally(() => {
-          setIsLoading(false);
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          created_at: session.user.created_at || '',
         });
-    } else {
+      } else {
+        setUser(null);
+      }
+    });
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUser({
+          id: session.user.id,
+          email: session.user.email || '',
+          created_at: session.user.created_at || '',
+        });
+      }
       setIsLoading(false);
-    }
-  }, [updateArtistData, setUploadedFiles]);
+    });
+
+    return () => {
+      listener?.subscription.unsubscribe();
+    };
+  }, []);
 
   const login = async (email: string, password: string) => {
-    try {
-      const response: LoginResponse = await apiClient.login(email, password);
-      setUser(response.user);
+    // Supabase is the source of truth for auth/session
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      showToast({
+        title: 'Supabase login failed',
+        description: error.message,
+        variant: 'destructive',
+        duration: 6000,
+      });
+      throw error;
+    }
+    if (data?.user) {
+      setUser({
+        id: data.user.id,
+        email: data.user.email || '',
+        created_at: data.user.created_at || '',
+      });
+    }
 
-      // Fetch artist profile after login
+    // Also log into API/JWT to keep the users table/token for other features
+    try {
+      const apiResp: LoginResponse = await apiClient.login(email, password);
+      // Optionally hydrate artist/files if needed
+      setUser(apiResp.user);
       try {
         const userData = await apiClient.getCurrentUser();
         if (userData.artist) {
@@ -86,42 +96,59 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             bio: userData.artist.bio || '',
           });
         }
-
-        // Fetch uploaded files
         try {
           const filesData = await apiClient.getUploadedFiles();
           if (filesData.files) {
             setUploadedFiles(filesData.files);
           }
-        } catch (error) {
-          console.log('No uploaded files found');
+        } catch {
+          // no files
         }
-      } catch (error) {
-        console.log('No artist profile found for user');
+      } catch {
+        // ignore artist/files errors
       }
-    } catch (error) {
-      console.error('Login error:', error);
-      throw error;
+    } catch (apiErr: any) {
+      console.warn('API login failed (users table/token)', apiErr?.message || apiErr);
     }
   };
 
   const register = async (email: string, password: string) => {
-    try {
-      await apiClient.register({ email, password });
-      // After registration, automatically log in
-      await login(email, password);
-    } catch (error) {
-      console.error('Registration error:', error);
+    // Create Supabase user
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: window.location.origin },
+    });
+
+    if (error) {
+      showToast({
+        title: 'Supabase signup failed',
+        description: error.message,
+        variant: 'destructive',
+        duration: 6000,
+      });
       throw error;
     }
+
+    // Also create row in users table for other app features
+    try {
+      await apiClient.register({ email, password });
+    } catch (apiErr: any) {
+      console.warn('API register failed (users table)', apiErr?.message || apiErr);
+    }
+
+    showToast({
+      title: 'Check your email',
+      description: 'Please verify your email before signing in.',
+      duration: 6000,
+    });
   };
 
   const logout = () => {
-    apiClient.logout();
+    supabase.auth.signOut().catch(err => console.warn('Supabase signOut failed', err));
     setUser(null);
-
-    // Clear artist data from Zustand (and localStorage via persist)
     clearArtistData();
+    apiClient.logout();
   };
 
   const value: AuthContextType = {
